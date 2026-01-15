@@ -1,0 +1,1047 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>Algoritmo QuickHull</title>
+
+    <script src="https://sagecell.sagemath.org/static/jquery.min.js"></script>
+    <script src="https://sagecell.sagemath.org/embedded_sagecell.js"></script>
+    <script>
+      $(function () {
+          sagecell.makeSagecell({
+              inputLocation: 'div.compute',
+              template: sagecell.templates.minimal,
+              evalButtonText: 'Lanzar applet interactiva ahora'
+          });
+      });
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+      *, *::before, *::after {
+        box-sizing: border-box;
+      }
+
+      :root {
+        --bg-page: #f5f5f7;
+        --bg-page-soft: #f9fafb;
+        --card-bg: #ffffff;
+        --card-border: rgba(148, 163, 184, 0.35);
+        --accent-primary: #1d4ed8;
+        --accent-primary-soft: #e0ebff;
+        --accent-amber: #f59e0b;
+        --accent-amber-soft: #fef3c7;
+        --accent-muted: #9ca3af;
+        --text-main: #020617;
+        --text-muted: #4b5563;
+        --radius-xl: 1.6rem;
+        --shadow-soft: 0 18px 40px rgba(15, 23, 42, 0.12);
+      }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        background:
+          radial-gradient(circle at top left, rgba(191, 219, 254, 0.6), transparent 55%),
+          radial-gradient(circle at bottom right, rgba(254, 243, 199, 0.55), transparent 55%),
+          linear-gradient(135deg, #f9fafb, #f3f4f6);
+        color: var(--text-main);
+        font-family: "Space Grotesk", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        padding: 2.5rem 1.25rem;
+      }
+
+      .page-wrapper {
+        width: 100%;
+        max-width: 1120px;
+      }
+
+      .page-shell {
+        position: relative;
+        background: radial-gradient(circle at top, #ffffff 0, #f9fafb 55%, #f3f4f6 100%);
+        border-radius: var(--radius-xl);
+        padding: 2.4rem 2.3rem 2.9rem;
+        box-shadow: var(--shadow-soft);
+        border: 1px solid var(--card-border);
+        overflow: hidden;
+      }
+
+      .page-shell::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(135deg, rgba(255, 255, 255, 0.9), transparent 35%),
+          radial-gradient(circle at top right, rgba(219, 234, 254, 0.7), transparent 55%);
+        opacity: 0.8;
+        pointer-events: none;
+      }
+
+      .page-shell::after {
+        content: "";
+        position: absolute;
+        inset: 4%;
+        border-radius: calc(var(--radius-xl) - 0.6rem);
+        background-image:
+          linear-gradient(120deg, rgba(148, 163, 184, 0.18) 0, transparent 45%, rgba(148, 163, 184, 0.18) 90%);
+        background-size: 220% 220%;
+        mix-blend-mode: soft-light;
+        opacity: 0.35;
+        pointer-events: none;
+      }
+
+      .page-shell > * {
+        position: relative;
+        z-index: 1;
+      }
+
+      @media (max-width: 768px) {
+        body {
+          padding: 1.75rem 1rem;
+        }
+        .page-shell {
+          padding: 1.9rem 1.4rem 2.4rem;
+          border-radius: 1.2rem;
+        }
+      }
+
+      .eyebrow {
+        text-align: center;
+        font-size: 0.7rem;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--accent-muted);
+        margin-bottom: 0.6rem;
+      }
+
+      .main-title {
+        font-size: clamp(2.4rem, 3.6vw, 3rem);
+        letter-spacing: 0.35em;
+        text-transform: uppercase;
+        text-align: center;
+        margin: 0;
+        background: linear-gradient(120deg, #020617, var(--accent-primary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+
+      .title-highlight {
+        display: flex;
+        justify-content: center;
+        margin-top: 0.85rem;
+        margin-bottom: 1.5rem;
+      }
+
+      .title-highlight-inner {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.45rem 0.9rem;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #eff6ff, #fef3c7);
+        border: 1px solid rgba(209, 213, 219, 0.9);
+        font-size: 0.78rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: #4b5563;
+      }
+
+      .title-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        background: radial-gradient(circle, var(--accent-primary), var(--accent-amber));
+      }
+
+      .subtitle-block {
+        text-align: center;
+        margin-bottom: 2.1rem;
+        font-size: 0.9rem;
+        color: var(--text-muted);
+      }
+
+      .subtitle-block p {
+        margin: 0.25rem 0;
+      }
+
+      .authors-line {
+        font-weight: 500;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        color: #6b7280;
+      }
+
+      hr {
+        border: 0;
+        height: 1px;
+        margin: 0 0 2.1rem;
+        background: linear-gradient(90deg,
+          transparent,
+          rgba(148, 163, 184, 0.75),
+          rgba(148, 163, 184, 0.75),
+          transparent);
+        position: relative;
+      }
+
+      hr::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 44px;
+        height: 18px;
+        border-radius: 999px;
+        border: 1px solid rgba(209, 213, 219, 0.95);
+        transform: translate(-50%, -50%);
+        background: linear-gradient(90deg, #eff6ff, #fef3c7);
+        box-shadow: 0 0 0 3px #f9fafb;
+      }
+
+      .section-group {
+        background: #ffffff;
+        border-radius: 1.15rem;
+        padding: 1.5rem 1.5rem 1.6rem;
+        border: 1px solid rgba(229, 231, 235, 0.9);
+        box-shadow: 0 8px 22px rgba(148, 163, 184, 0.12);
+        margin-bottom: 1.9rem;
+      }
+
+      .section-group:last-of-type {
+        margin-bottom: 1.7rem;
+      }
+
+      .section-header-row {
+        display: flex;
+        align-items: center;
+        gap: 0.7rem;
+        margin-bottom: 0.3rem;
+      }
+
+      .section-index-pill {
+        width: 1.6rem;
+        height: 1.6rem;
+        border-radius: 999px;
+        border: 1px solid rgba(209, 213, 219, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.72rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #6b7280;
+        background: linear-gradient(135deg, #f9fafb, #eff6ff);
+      }
+
+      .section-title {
+        font-size: 0.98rem;
+        margin: 0;
+        color: #111827;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .section-underline {
+        height: 2px;
+        width: 100%;
+        margin: 0.75rem 0 0.85rem;
+        background: linear-gradient(90deg, var(--accent-primary), var(--accent-amber));
+        border-radius: 999px;
+        opacity: 0.35;
+      }
+
+      h3 {
+        margin-top: 1.6rem;
+        margin-bottom: 0.6rem;
+        font-size: 0.96rem;
+        color: #111827;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      p {
+        line-height: 1.7;
+        margin-top: 0.35rem;
+        margin-bottom: 0.9rem;
+        color: var(--text-muted);
+        font-size: 0.96rem;
+      }
+
+      ul {
+        margin: 0.25rem 0 1rem 1.1rem;
+        padding-left: 0.7rem;
+      }
+
+      li {
+        margin-bottom: 0.45rem;
+        line-height: 1.7;
+        color: var(--text-muted);
+        font-size: 0.95rem;
+      }
+
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 0.9rem;
+        background: #f3f4f6;
+        padding: 0.16rem 0.45rem;
+        border-radius: 999px;
+        border: 1px solid #e5e7eb;
+      }
+
+      pre {
+        background: #f9fafb;
+        color: #111827;
+        padding: 0.9rem 1rem;
+        border-radius: 0.85rem;
+        overflow-x: auto;
+        font-size: 0.9rem;
+        border: 1px solid #e5e7eb;
+      }
+
+      pre code {
+        background: transparent;
+        padding: 0;
+        border-radius: 0;
+        border: none;
+      }
+
+      .compute {
+        margin-top: 1.6rem;
+        margin-bottom: 1.9rem;
+        padding: 1.3rem 1.3rem 1.6rem;
+        border-radius: 0.95rem;
+        position: relative;
+        background: linear-gradient(135deg, #ffffff, #f9fafb);
+        border: 1px solid rgba(209, 213, 219, 0.95);
+        box-shadow: 0 8px 24px rgba(148, 163, 184, 0.16);
+      }
+
+      .compute::before {
+        content: "QuickHull · Applet interactiva";
+        position: absolute;
+        top: 0.85rem;
+        right: 1.2rem;
+        font-size: 0.68rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: #9ca3af;
+      }
+
+      .compute::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        pointer-events: none;
+        border: 1px solid transparent;
+        background: linear-gradient(120deg,
+            rgba(191, 219, 254, 0.7),
+            rgba(254, 243, 199, 0.7)) border-box;
+        -webkit-mask:
+          linear-gradient(#000 0 0) padding-box,
+          linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        opacity: 0.28;
+      }
+
+      .applet-note {
+        font-size: 0.86rem;
+        color: #6b7280;
+        margin-top: 0;
+        margin-bottom: 0.85rem;
+        padding-right: 7.5rem;
+      }
+
+      .footer-line {
+        margin-top: 2.1rem;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(209, 213, 219, 0.9);
+        font-size: 0.8rem;
+        color: #6b7280;
+        text-align: right;
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.35rem;
+        align-items: center;
+      }
+
+      .footer-line::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 999px;
+        background: radial-gradient(circle, var(--accent-primary), var(--accent-amber));
+      }
+
+      .ai-note {
+        margin-top: 0.75rem;
+        font-size: 0.78rem;
+        color: #9ca3af;
+        text-align: right;
+        font-style: italic;
+      }
+
+      .discusion-block ul {
+        margin-top: 0.4rem;
+      }
+
+      .discusion-block li {
+        margin-bottom: 0.5rem;
+      }
+
+      .discusion-block p + ul {
+        margin-top: 0.3rem;
+      }
+
+      .discusion-block p:last-of-type {
+        margin-bottom: 0.45rem;
+      }
+
+      a {
+        color: var(--accent-primary);
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      .sagecell .sagecell_evalButton {
+        font-family: inherit;
+        font-size: 0.82rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        border-radius: 999px !important;
+        padding: 0.55rem 1.5rem !important;
+        border: 1px solid rgba(37, 99, 235, 0.9) !important;
+        background-image: linear-gradient(90deg, #1d4ed8, #3b82f6) !important;
+        color: #f9fafb !important;
+        cursor: pointer;
+        transition: transform 0.15s ease-out, box-shadow 0.15s ease-out, background-image 0.2s ease-out;
+        box-shadow: 0 10px 24px rgba(37, 99, 235, 0.28);
+      }
+
+      .sagecell .sagecell_evalButton:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 14px 32px rgba(37, 99, 235, 0.32);
+        background-image: linear-gradient(90deg, #1d4ed8, #2563eb) !important;
+      }
+
+      .sagecell .sagecell_evalButton:active {
+        transform: translateY(0);
+        box-shadow: 0 8px 18px rgba(37, 99, 235, 0.28);
+      }
+
+      .sagecell .sagecell_editor,
+      .sagecell .CodeMirror {
+        border-radius: 0.7rem !important;
+        border: 1px solid #e5e7eb !important;
+        background-color: #ffffff !important;
+      }
+
+      .sagecell_output_elements {
+        margin-top: 1rem !important;
+      }
+
+      @media (max-width: 640px) {
+        .compute::before {
+          display: none;
+        }
+        .applet-note {
+          padding-right: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+
+    <div class="page-wrapper">
+      <div class="page-shell">
+
+        <div class="eyebrow">Geometría computacional</div>
+        <h1 class="main-title">Algoritmo QuickHull</h1>
+        <div class="title-highlight">
+          <div class="title-highlight-inner">
+            <span class="title-dot"></span>
+            <span>Visualización interactiva del cierre convexo</span>
+          </div>
+        </div>
+
+        <div class="subtitle-block">
+          <p>Una applet interactiva impulsada por SageMath y MathJax.</p>
+          <p class="authors-line">Jaime Sainz, Rafael Onieva e Iñaki Juan-Aracil</p>
+        </div>
+
+        <hr>
+
+        <div class="section-group">
+          <div class="section-header-row">
+            <div class="section-index-pill">01</div>
+            <h2 class="section-title">Introducción</h2>
+          </div>
+          <div class="section-underline"></div>
+
+          <p>
+            El objetivo de este proyecto es calcular el cierre convexo de una nube de puntos en el plano
+            mediante el algoritmo QuickHull, e ilustrar su funcionamiento de forma interactiva.
+          </p>
+
+          <p>
+            Dado un conjunto finito de puntos P ⊂ R², el cierre convexo es el polígono convexo de menor área
+            que contiene a todos los puntos de la nube.En este trabajo hemos implementado el algoritmo QuickHull en
+            SageMath a partir de las funciones geométricas desarrolladas en las prácticas.
+          </p>
+
+          <p>
+            Este algoritmo sigue una estrategía de "divide y vencerás". Partiendo de dos puntos extremos que seguro que
+            pertenecen a la envolvente; se separa el resto de la nube en dos semiplanos. En cada lado se va buscando el punto
+            más alejado al segmento actual de la envolvente. Con este punto (uniéndolo a los otros dos que formaban el segmento)
+            se define un triángulo, el cual nos permite descartar los puntos que se encuentren en su interior.
+            Se repite estre proceso recursivamente sobre los subconjuntos restantes hasta que ya no quedan puntos fuera de los segmentos
+            de la envolvente convexa.
+          </p>
+
+          <p>
+            Para la implementación de este podemos apoyarnos en el pseudocógido de las diapositivas, de donde obtenemos que su realización
+            se organiza en dos niveles:
+          </p>
+
+          <h3>Función principal QuickHull(P)</h3>
+
+          <ul>
+            <li>Gestiona los casos triviales (menos de 3 puntos).</li>
+            <li>
+              Localiza los puntos extremos en x, a = Xmin(P) y b = Xmax(P), que seguro pertenecen al cierre convexo.
+            </li>
+            <li>
+              Particiona el resto de puntos en dos subconjuntos:
+              <ul>
+                <li>Sab: puntos a la derecha de la recta dirigida ab.</li>
+                <li>Sba: puntos a la derecha de la recta dirigida ba (equivalente a la izquierda de ab).</li>
+              </ul>
+            </li>
+            <li>
+              Llama recursivamente a la subrutina Quickhull en cada lado y ensambla la envolvente completa:
+              <ul>
+                <pre><code>H1 = Quickhull(a, b, Sab)
+H2 = Quickhull(b, a, Sba)
+return [a] + H1 + [b] + H2</code></pre>
+              </ul>
+            </li>
+          </ul>
+
+          <h3>Función auxiliar Quickhull(a, b, S)</h3>
+
+          <p>
+            Construye la cadena de la envolvente entre los puntos a y b por un lado concreto:
+          </p>
+
+          <ul>
+            <li>
+              Selecciona el punto c de S más alejado de la recta ab, utilizando el valor absoluto de
+              areaSignada(a, b, p) como medida de distancia.
+            </li>
+            <li>
+              Elimina los puntos interiores (o en el borde) del triángulo a–c–b usando la función enTriangulo,
+              y reparte el resto en dos conjuntos:
+              <ul>
+                <li>A: puntos a la derecha de la recta dirigida ac.</li>
+                <li>B: puntos a la derecha de la recta dirigida cb.</li>
+              </ul>
+            </li>
+            <li>
+              Llama recursivamente a Quickhull sobre los segmentos a–c y c–b:
+              <pre><code>return Quickhull(a, c, A) + [c] + Quickhull(c, b, B)</code></pre>
+            </li>
+          </ul>
+
+          <p>
+            La combinación de estas llamadas recursivas genera los vértices del cierre convexo en orden
+            antihorario. La decisión de "derecha" o "izquierda" de una recta se basa en el signo de la función
+            areaSignada. Además, la función enTriangulo permite descartar de forma eficiente los puntos que quedan dentro del triángulo a–c–b,
+            reduciendo el tamaño de los subconjuntos en cada paso recursivo y haciendo que el algoritmo sea más
+            rápido en la práctica.
+          </p>
+
+          <p>
+            En la parte interactiva del proyecto, utilizaremos esta implementación de QuickHull para construir un
+            applet que permita generar nubes de puntos, visualizar el cierre convexo resultante y observar paso a
+            paso cómo el algoritmo va "despejando" puntos interiores hasta quedarse únicamente con los vértices de
+            la envolvente convexa.
+          </p>
+
+          <h3>Función auxiliar clasifica_puntos</h3>
+
+          <p>
+            Esta función sirve para distinguir, en cada iteracion del algoritmo, qué puntos de la nube
+            ya han quedado en el interior de la envolvente convexa y cuáles siguen siendo candidatos.
+          </p>
+          <ul>
+            <li>
+              Como entrada tiene la lista de puntos P, el historial de pasos del algoritmo QuickHull y
+              el número de pasos que llevamos hasta la iteración actual. Con esa información recorre
+              los pasos del historial hasta ese momento y, en cada uno, toma el triángulo formado por
+              los puntos a, c y b que aparecen en ese paso.
+            </li>
+
+            <li>
+              Cada uno de esos triángulos representa una zona que el algoritmo ya ha “tapado” al ir
+              construyendo la envolvente. La función mira, para cada triángulo, qué puntos de la nube
+              caen dentro de él y los va guardando en una lista llamada descartados, porque esos puntos
+              ya no podrán formar parte de nuevas aristas de la envolvente convexa.
+            </li>
+          </ul>
+          <p>
+            Al final, la función devuelve dos listas: por un lado puntos_dentro, que son todos los
+            puntos que han quedado dentro de la envolvente parcial. Y por otro lado
+            puntos_fuera, que son el resto de puntos de la nube, es decir, los que todavía pueden
+            influir en la construcción de la envolvente.
+          </p>
+
+          <p>
+            Gracias a clasifica_puntos, en la parte gráfica de la applet podemos pintar de forma
+            diferente los puntos que siguen “en debate" en el algoritmo y los que ya han quedado
+            definitivamente en el interior de la envolvente.
+          </p>
+        </div>
+
+        <div class="section-group">
+          <div class="section-header-row">
+            <div class="section-index-pill">02</div>
+            <h2 class="section-title">Instrucciones de uso</h2>
+          </div>
+          <div class="section-underline"></div>
+
+          <p>
+            Para hacer uso de la Applet interactiva empieze eligiendo como prefiere generar los puntos, de manera aleatoria
+            o manualmente. En el primer caso, podrá seleccionar el número de puntos y la semilla para la generación aleatoria (para reproducibilidad del caso).
+            En el segundo caso, deberá introducir una lista de puntos en formato [[x1,y1],[x2,y2],...,[xn,yn]].
+          </p>
+          <p>
+            Una vez generada la nube de puntos, podrá avanzar en las iteraciones del algoritmo QuickHull mediante el deslizador "Iteración i del algoritmo".
+            En cada paso se mostrará la envolvente convexa parcial, los puntos descartados y el triángulo actual que se está procesando.
+            Esto le permitirá observar cómo se va construyendo la envolvente convexa paso a paso.
+          </p>
+
+          <div class="compute">
+            <p class="applet-note">El código SageMath de la applet se carga a continuación:</p>
+            <script type="text/x-sage">
+
+##
+
+##
+## Debe copiar y pegar su función interactiva aquí.
+
+#########################
+## BIBLIOTECA DE CLASE
+#########################
+
+
+def areaSignada(a,b,c):
+    return((b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]))/2
+
+
+def enTriangulo(p,t):
+    a1=areaSignada(t[0],t[1],p)
+    a2=areaSignada(t[1],t[2],p)
+    a3=areaSignada(t[2],t[0],p)
+    
+    if a1>=0 and a2>=0 and a3>=0 or a1<=0 and a2<=0 and a3<=0:
+        return true
+    else:
+        return false
+
+
+
+
+def Xmax(p):
+    return(max(p))
+
+
+
+def Xmin(p):
+    return min(p)
+
+
+#######################################
+## FUNCIONES DESARROLLADAS POR NOSOTROS
+#######################################
+
+def clasifica_puntos(P, historial, pasos_iteracion):
+    descartados = []         
+    if pasos_iteracion > 0:
+        for paso_hist in historial[:pasos_iteracion]:
+            a_h = paso_hist['a']
+            b_h = paso_hist['b']
+            c_h = paso_hist['p']
+            if c_h is None:
+                continue
+            tri = [a_h, c_h, b_h]
+            for p in P:
+                if p in descartados or p in tri:
+                    continue
+                if enTriangulo(p, tri):
+                    descartados.append(p)
+
+    puntos_dentro = descartados
+    puntos_fuera  = [p for p in P if p not in descartados]
+    return puntos_dentro, puntos_fuera
+
+
+# Auxiliar recursiva: S = puntos a la DERECHA de la recta dirigida ab
+def Quickhull(a, b, S, historial):
+    
+    #Primero guardamos la iteración
+    iteracion = {'a': a, 'b': b, 'S': list(S), 'p': None}
+    historial.append(iteracion)
+    
+    #Función en sí: 
+    if len(S) == 0:
+        return []
+
+    #Primero calculamos el punto más lejano a la recta ab (Punto c)
+    c = S[0]
+    dmax = abs(areaSignada(a, b, c))
+    for p in S:
+        d = abs(areaSignada(a, b, p))
+        if d > dmax:
+            dmax = d
+            c = p
+    
+    #Guardamos el pivote de este paso
+    iteracion["p"] = c
+    
+    #Eliminamos los puntos interiores al triángulo a-c-b
+    #y construimos las cadenas A (derecha de ac) y B (derecha de cb)
+    A = []
+    B = []
+    for p in S:
+        
+        if enTriangulo(p, [a, c, b]):
+            continue                    #quitamos los puntos interiores o en el borde del triángulo acb
+
+        if areaSignada(a, c, p) < 0:    #derecha de ac
+            A.append(p)
+        elif areaSignada(c, b, p) < 0:  #derecha de cb
+            B.append(p)
+
+    #Recursión: cadena de a->b por este lado
+    return Quickhull(a, c, A, historial) + [c] + Quickhull(c, b, B, historial)
+
+
+def QuickHull(P):
+    #Casos triviales
+    
+    historial = []
+    
+    if len(P) < 3:
+        print("Se necesitan al menos 3 puntos para calcular el cierre convexo.")
+        return P, historial
+
+    #Extremos en x
+    a = Xmin(P)
+    b = Xmax(P)
+
+    #Partición inicial:
+    # Sab: puntos a la DERECHA de ab
+    # Sba: puntos a la DERECHA de ba (equiv. izquierda de ab)
+    Sab = []
+    Sba = []
+    for p in P:
+        if p == a or p == b:
+            continue
+        s = areaSignada(a, b, p)
+        if s < 0:          # derecha de ab
+            Sab.append(p)
+        elif s > 0:        # derecha de ba
+            Sba.append(p)
+
+    # Cadenas de la envolvente
+    H1 = Quickhull(a, b, Sab, historial)   # de a a b por un lado
+    H2 = Quickhull(b, a, Sba, historial)   # de b a a por el otro
+
+    #Envolvente completa en sentido antihorario
+    H = [a] + H1 + [b] + H2
+    return H, historial
+
+
+######################
+## APPLET INTERACTIVA
+######################
+@interact
+#Primera applet para la selección del modo de puntos
+def applet_quickhull(
+    modo_puntos = selector(['Aleatoriamente', 'Manualmente'],
+                           label='Modo de introducir los puntos:')
+):
+    #Tenemos que hacer dos applet, para aleatorio y manual
+    if modo_puntos == 'Aleatoriamente':
+        @interact
+        def applet_quickhull_aleatorio(
+            n       = slider(3, 300, 1, 50,
+                             label='Número de puntos'),
+            semilla = input_box(0, label='Semilla (para fijar la nube aleatoria)')
+        ):
+            #Construcción de la nube de puntos:
+            set_random_seed(Integer(semilla))
+            P = [[random(), random()] for _ in range(n)]
+            
+            H, historial = QuickHull(P)
+            num_pasos = len(historial)
+            #caso sin pasos
+            if num_pasos == 0:
+                g = point(P, size=15, color='red')
+                show(g, aspect_ratio=1, figsize=(8,8))
+                print("Número total de puntos:", len(P))
+                print("Número de vértices de la envolvente convexa:", len(H))
+                ##
+                return
+
+            #tercera applet para los pasos y la visualización
+            @interact
+            def applet_quickhull_pasos_aleatorio(
+                iteracion = slider(0, num_pasos, 1, 0,
+                              label='Iteración i del algoritmo')
+            ):
+                pasos_iteracion = min(iteracion, num_pasos)
+                
+                #Calculamos que  puntos ya estan "dentro" de la envolvente que llevamos
+                puntos_dentro, puntos_fuera = clasifica_puntos(P, historial, pasos_iteracion)
+
+                #Calculamos la envolvente hasta ahora
+                envolvente_parcial = []
+                if num_pasos > 0 and 0 < pasos_iteracion < num_pasos:
+                    vistos = []
+                    for paso_hist in historial[:pasos_iteracion]:
+                        c_h = paso_hist['p']
+                        if c_h is not None and c_h not in vistos:
+                            vistos.append(c_h)
+                    
+                    a_inicial = Xmin(P)
+                    b_inicial = Xmax(P)
+                    if a_inicial not in vistos:
+                        vistos.insert(0, a_inicial)
+                    if b_inicial not in vistos:
+                        vistos.append(b_inicial)
+                    
+                    for p in H:
+                        if p in vistos:
+                            envolvente_parcial.append(p)
+
+                #pintamos
+                g = Graphics()
+                if puntos_fuera:
+                    g += point(puntos_fuera, size=15, color='red')
+                if puntos_dentro:
+                    g += point(puntos_dentro, size=15, color='gray')
+                
+                #Envolvente completa solo en el paso 0 o en el final
+                if pasos_iteracion == 0 or pasos_iteracion == num_pasos or pasos_iteracion == 0:
+                    if len(H) >= 3:
+                        g += polygon(H, alpha=0.2)
+                    if len(H) >= 2:
+                        g += line(H + [H[0]])
+                else: #envolvente parcial
+                    if len(envolvente_parcial) >= 3:
+                        g += polygon(envolvente_parcial, alpha=0.2)
+                        g += line(envolvente_parcial + [envolvente_parcial[0]])
+                    elif len(envolvente_parcial) == 2:
+                        g += line(envolvente_parcial)
+
+                if 0 < pasos_iteracion < num_pasos:
+                    paso = historial[pasos_iteracion - 1]
+                    a = paso['a']
+                    b = paso['b']
+                    S = [p for p in paso['S'] if p not in puntos_dentro]
+                    c = paso['p']
+                    
+                    if c is not None:
+                        tri_actual = [a, c, b]
+                        g += polygon(tri_actual, alpha=0.10, color='yellow')
+                    
+                    g += line([a, b], color='blue', thickness=3, linestyle='--')
+                    
+                    if S:
+                        g += point(S, size=20, color='green')
+                    
+                    if c is not None:
+                        g += point(c, size=40, color='orange')
+                        g += circle(c, 0.02, color='orange', thickness=3)
+                    g += point([a], size=30, color='blue')
+                    g += point([b], size=30, color='blue')
+                
+                show(g, aspect_ratio=1, figsize=(8,8))
+                print("Número total de puntos:", len(P))
+                print("Número de vértices de la envolvente convexa:", len(H))
+                ##
+    
+    
+    else:  #Manualmente
+        
+        @interact
+        def applet_quickhull_manual(
+            puntos_manuales = input_box([[0,0],[1,0],[1,1],[0,1]],
+                                        label='Lista de puntos ')
+        ):
+            #Construcción de la nube de puntos:
+            P = puntos_manuales
+            
+            H, historial = QuickHull(P)
+            num_pasos = len(historial)
+            
+            if num_pasos == 0:
+                g = point(P, size=15, color='red')
+                show(g, aspect_ratio=1, figsize=(8,8))
+                print("Número total de puntos:", len(P))
+                print("Número de vértices de la envolvente convexa:", len(H))
+                ##
+                return
+            #MISMA APPLET QUE ANTES, pero para el caso manual, hemos tenifo que repetirla
+            @interact
+            def applet_quickhull_pasos_manual(
+                iteracion = slider(0, num_pasos, 1, 0,
+                              label='Iteración i del algoritmo')
+            ):
+                pasos_iteracion = min(iteracion, num_pasos)
+                
+                #Calculamos que  puntos ya estan "dentro" de la envolvente
+                puntos_dentro, puntos_fuera = clasifica_puntos(P, historial, pasos_iteracion)
+
+                #Calculamos la envolvente hasta ahora
+                envolvente_parcial = []
+                if num_pasos > 0 and 0 < pasos_iteracion < num_pasos:
+                    vistos = []
+                    for paso_hist in historial[:pasos_iteracion]:
+                        c_h = paso_hist['p']
+                        if c_h is not None and c_h not in vistos:
+                            vistos.append(c_h)
+                    
+                    a_inicial = Xmin(P)
+                    b_inicial = Xmax(P)
+                    if a_inicial not in vistos:
+                        vistos.insert(0, a_inicial)
+                    if b_inicial not in vistos:
+                        vistos.append(b_inicial)
+                    
+                    for p in H:
+                        if p in vistos:
+                            envolvente_parcial.append(p)
+                            
+                #pintamos
+                g = Graphics()
+                if puntos_fuera:
+                    g += point(puntos_fuera, size=15, color='red')
+                if puntos_dentro:
+                    g += point(puntos_dentro, size=15, color='gray')
+                
+                #Envolvente completa solo en el paso 0 o en el final
+                if pasos_iteracion == 0 or pasos_iteracion == num_pasos or num_pasos == 0:
+                    if len(H) >= 3:
+                        g += polygon(H, alpha=0.2)
+                    if len(H) >= 2:
+                        g += line(H + [H[0]])
+                else:
+                    if len(envolvente_parcial) >= 3:
+                        g += polygon(envolvente_parcial, alpha=0.2)
+                        g += line(envolvente_parcial + [envolvente_parcial[0]])
+                    elif len(envolvente_parcial) == 2:
+                        g += line(envolvente_parcial)
+                
+                if 0 < pasos_iteracion < num_pasos:
+                    paso = historial[pasos_iteracion - 1]
+                    a = paso['a']
+                    b = paso['b']
+                    S = [p for p in paso['S'] if p not in puntos_dentro]
+                    c = paso['p']
+                    
+                    if c is not None:
+                        tri_actual = [a, c, b]
+                        g += polygon(tri_actual, alpha=0.10, color='yellow')
+                    
+                    g += line([a, b], color='blue', thickness=3, linestyle='--')
+                    
+                    if S:
+                        g += point(S, size=20, color='green')
+                    
+                    if c is not None:
+                        g += point(c, size=40, color='orange')
+                        g += circle(c, 0.02, color='orange', thickness=3)
+                    g += point([a], size=30, color='blue')
+                    g += point([b], size=30, color='blue')
+                
+                show(g, aspect_ratio=1, figsize=(8,8))       
+                print("Número total de puntos:", len(P))
+                print("Número de vértices de la envolvente convexa:", len(H))
+##
+            </script>
+          </div>
+        </div>
+
+        <div class="section-group">
+          <div class="section-header-row">
+            <div class="section-index-pill">03</div>
+            <h2 class="section-title">Discusión</h2>
+          </div>
+          <div class="section-underline"></div>
+
+          <div class="discusion-block">
+            <p>En este proyecto hemos comprobado que QuickHull es una de las técnicas estándar para entender el problema de la envolvente convexa en el plano.
+              Su principal estrategia de “divide y vencerás” se puede ver muy bien en la práctica: en cada paso se selecciona un punto extremo,
+              se forma un triángulo con el segmento actual de la envolvente y se descartan de golpe muchos puntos interiores. Visualmente,
+              podemos comprobar que esto se traduce en que la envolvente se va “limpiando” desde fuera hacia dentro, a base de triángulos
+              que van tapando zonas donde ya sabemos que no puede haber nuevos vértices (y de esta manera librarnos de todos aquellos que pertenezcan al interior de dicho triángulo).</p>
+
+            <p>El comportamiento del algoritmo depende bastante tanto del número de puntos como de cómo estén distribuidos: </p>
+            <ul>
+              <li>Cuando generamos nubes aleatorias más o menos uniformes y vamos aumentando el número de puntos con el deslizador, se observa que el número de vértices de la envolvente crece mucho menos que n:
+                la mayoría de puntos acaban siendo interiores y se descartan rápidamente. En esos casos, QuickHull tiende a ser bastante eficiente, porque cada triángulo
+                que aparece en las iteraciones elimina muchos candidatos de una vez. </li>
+              <li>En cambio, si construimos a mano conjuntos de puntos desfavorables para el algoritmo, como por ejemplo casi todos alineados cerca de una misma recta o
+                ya prácticamente sobre el borde de un polígono convexo, el algoritmo tiene que considerar más pasos y la complejidad se acerca a su peor caso: cuadrático.
+                Con la applet esto se ve bien: la envolvente tarda más en estabilizarse y aparecen muchos triángulos pequeños en lugar de unos pocos triángulos grandes.</li>
+            </ul>
+
+            <p>Otra ventaja de nuestra implementación es la función de clasificación de puntos, que nos permite distinguir en cada paso entre puntos “dentro” de la envolvente parcial y puntos que siguen siendo candidatos.
+              En la visualización esto se refleja en el uso de colores distintos para los puntos descartados, los que siguen activos y el triángulo actual. Esto ayuda mucho a entender por qué el algoritmo no vuelve a considerar ciertas zonas del plano. </p>
+
+            <p>El cálculo de la envolvente convexa tiene multitud de aplicaciones prácticas y QuickHull es una forma razonablemente sencilla de aproximarse a ellas.
+              A partir de una nube de puntos, el algoritmo proporciona una “envoltura mínima” que resulta útil en distintos campos, como por ejemplo: </p>
+            <ul>
+              <li>En visión por ordenador nos ayudaría con la detección de contornos y agrupación de puntos clave.</li>
+              <li>En robótica y navegación facilita el modelado de obstáculos y planificación de rutas.
+                Lo mismo en sistemas de información geográfica, donde nos sirve para la delimitación de regiones y agrupación de puntos de interés.</li>
+              <li>En análisis de datos, donde nos puede acotar la región donde se concentran un conjunto de mediciones y detectar valores atípicos.</li>
+              <li>En temas de logísitica o planificación de servicios puede dar una buena aproximación del área realmente cubierta dada
+                por un conjunto de localizaciones (sucursales, tiendas, paradas de transporte, etc.)</li>
+            </ul>
+
+            <p>Aunque desde el punto de vista teórico no siempre resulta el algoritmo más eficiente, si lo comparamos con otras alternativas
+              clásicas como Graham Scan o Jarvis March, en la práctica su rendimiento suele ser satisfactorio en muchos escenarios reales.
+              Su interpretación geométrica lo hace una opción especialmente adecuada para estudiar el problema de la envolvente convexa
+              en un contextos como los descritos para su aplicación real.</p>
+          </div>
+        </div>
+
+        <div class="footer-line">
+          Modificado por última vez: 29/11/25.
+        </div>
+        <p class="ai-note">El diseño visual de este HTML se ha elaborado con el apoyo de herramientas de inteligencia artificial.</p>
+
+      </div>
+    </div>
+
+  </body>
+  <script>'undefined'=== typeof _trfq || (window._trfq = []);'undefined'=== typeof _trfd && (window._trfd=[]),_trfd.push({'tccl.baseHost':'secureserver.net'},{'ap':'cpsh-oh'},{'server':'p3plzcpnl502892'},{'dcenter':'p3'},{'cp_id':'2342172'},{'cp_cache':''},{'cp_cl':'6'})</script>
+  <script src='https://img1.wsimg.com/traffic-assets/js/tccl.min.js'></script>
+</html>
